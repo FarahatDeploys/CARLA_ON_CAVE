@@ -11,9 +11,9 @@ The following Repo is dedicated for Digital twin project and to visualize CARLA 
 
 
 # Dependencies 
-pygame
-multiprocessing 
-threading 
-time
-pygetwindow as gw
-platform
+- pygame
+- multiprocessing 
+- threading 
+- time
+- pygetwindow as gw
+- platform
