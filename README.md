@@ -2,7 +2,15 @@
 
 The following Repo is dedicated for Digital twin project and to visualize CARLA on CAVE
 
-## Dependencies 
+
+# Features 
+- joystick control
+- 3D effect 
+- Multithreading 
+- Basic axis mapping 
+
+
+# Dependencies 
 pygame
 multiprocessing 
 threading 

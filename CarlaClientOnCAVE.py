@@ -18,6 +18,7 @@ def initialize_carla_client():
     vehicle_bp = blueprint_library.filter('vehicle')[0]
 
     spawn_points = world.get_map().get_spawn_points()
+    # try different spawn points 
     for spawn_point in spawn_points:
         try:
             vehicle = world.spawn_actor(vehicle_bp, spawn_point)
@@ -37,6 +38,7 @@ def create_camera(world, vehicle, transform, index, queue, barrier):
     camera = world.spawn_actor(camera_bp, transform, attach_to=vehicle)
 
     def camera_callback(image):
+        # make the images numby ready before storing them into the queue 
         array = np.frombuffer(image.raw_data, dtype=np.uint8)
         array = np.reshape(array, (image.height, image.width, 4))
         queue.put((index, array.copy(), time.time()))  # Send image data to queue with timestamp
@@ -57,12 +59,6 @@ def display_worker(camera_queue, shared_data, barrier, stop_event, window_name):
             idx, img, timestamp = camera_queue.get()
             combined_image_rgb = bgra_to_rgb(img)
 
-            # Get the throttle and steering values
-            throttle = shared_data.get("throttle", 0)
-            steer = shared_data.get("steer", 0)
-
-            # Overlay the throttle and steering values on the image
-
             # Display the processed image
             cv2.imshow(window_name, combined_image_rgb)
 
@@ -77,33 +73,6 @@ def display_worker(camera_queue, shared_data, barrier, stop_event, window_name):
     finally:
         cv2.destroyAllWindows()
 
-    cv2.namedWindow(window_name, cv2.WND_PROP_FULLSCREEN)
-    cv2.setWindowProperty(window_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-
-    try:
-        while not stop_event.is_set():
-            idx, img, timestamp = camera_queue.get()
-            combined_image_rgb = bgra_to_rgb(img)
-
-            # Get the throttle and steering values
-            throttle = shared_data.get("throttle", 0)
-            steer = shared_data.get("steer", 0)
-
-            # Overlay the throttle and steering values on the image
-
-            # Display the processed image
-            cv2.imshow(window_name, combined_image_rgb)
-
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                stop_event.set()
-                break
-
-            barrier.wait()  # Synchronize display with other cameras
-
-    except KeyboardInterrupt:
-        pass
-    finally:
-        cv2.destroyAllWindows()
 
 def clear_carla_cache():
     if platform.system() == "Windows":
@@ -150,23 +119,33 @@ def handle_joystick_input(joystick, vehicle, shared_data, stop_event):
         shared_data["steer"] = steer
 
 def main():
+    # tried to clear cash not working till now 
     clear_carla_cache()
+    # allign the window of the rendering screen with coordinate 0 for x and 0 for y
     os.environ['SDL_VIDEO_WINDOW_POS'] = "0,0"
 
+
+    # initialize pygame to capture the input from the user 
     pygame.init()
     pygame.joystick.init()
 
+    # exit program if the joystick is not connected 
     if pygame.joystick.get_count() < 1:
         print("No joystick found.")
         pygame.quit()
         exit()
 
+
+    # select joystick number 0 in case of multiple jotysticks avaiable and initialize it
     joystick = pygame.joystick.Joystick(0)
     joystick.init()
 
+
+    # initialize carla client and store the value of vehicle and world 
     vehicle, world = initialize_carla_client()
 
-    driver_head_location = carla.Location(x=0.3, y=0.0, z=1.2)
+
+    # array to store the location of the cameras that we will spawn later and attach to the car
     camera_transforms = [
         carla.Transform(carla.Location(x=0.3, y=0.0, z=1.2), carla.Rotation(yaw=90)),   # Forward
         carla.Transform(carla.Location(x=0.3, y=0.0, z=1.2), carla.Rotation(pitch=-90)),  # Right
@@ -176,6 +155,7 @@ def main():
         carla.Transform(carla.Location(x=0.31, y=0.0, z=1.2), carla.Rotation(pitch=0)) # Down
     ]
 
+    # generate array of queue objects 
     camera_queues = [Queue() for _ in range(len(camera_transforms))]
 
     manager = Manager()
